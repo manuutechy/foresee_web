@@ -19,6 +19,10 @@ export const useWalletStore = defineStore('wallet', {
     async deposit(phoneNumber, amount) {
       return client.post('/wallet/deposit', { phone_number: phoneNumber, amount })
     },
+    async depositStatus(checkoutRequestId) {
+      const { data } = await client.get(`/wallet/deposit/${checkoutRequestId}/status`)
+      return data
+    },
     async withdraw(phoneNumber, amount) {
       return client.post('/wallet/withdraw', { phone_number: phoneNumber, amount })
     },
