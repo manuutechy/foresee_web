@@ -17,7 +17,7 @@ const auth = useAuthStore()
 
 // Fee rates come from the server config; the breakdown is never shown to the
 // customer (it's baked silently into the projected payout).
-const cfg = ref({ platform_fee_rate: 0.05, creator_reward_rate: 0.05 })
+const cfg = ref({ platform_fee_rate: 0.05, creator_reward_rate: 0.05, min_stake: 100 })
 const market = ref(null)
 const history = ref([])
 const side = ref(null)
@@ -400,8 +400,11 @@ onUnmounted(() => ws?.close())
 
           <div class="amount-display money-input">
             <span class="amount-prefix">KES</span>
-            <input v-model="amount" type="number" min="10" placeholder="0" class="amount-field" />
+            <input v-model="amount" type="number" :min="cfg.min_stake" placeholder="0" class="amount-field" />
           </div>
+          <p v-if="amount && Number(amount) < cfg.min_stake" class="min-stake-hint">
+            Minimum stake is KES {{ cfg.min_stake }}
+          </p>
 
           <div class="quick-amounts">
             <button
@@ -425,7 +428,7 @@ onUnmounted(() => ws?.close())
             v-if="!isMultiChoice"
             class="btn-confirm full-width"
             :class="side === 'yes' ? 'confirm-yes' : side === 'no' ? 'confirm-no' : ''"
-            :disabled="!amount || !side || placing"
+            :disabled="!amount || Number(amount) < cfg.min_stake || !side || placing"
             @click="placeStake"
           >
             {{ placing ? 'Placing…' : !side ? 'Select YES or NO' : !auth.isAuthenticated ? 'Log in to stake' : `Confirm ${side.toUpperCase()} stake` }}
@@ -433,7 +436,7 @@ onUnmounted(() => ws?.close())
           <button
             v-else
             class="btn-confirm full-width confirm-yes"
-            :disabled="!amount || !optionId || placing"
+            :disabled="!amount || Number(amount) < cfg.min_stake || !optionId || placing"
             @click="placeStake"
           >
             {{ placing ? 'Placing…' : !optionId ? 'Select a choice' : !auth.isAuthenticated ? 'Log in to stake' : 'Confirm stake' }}
@@ -614,6 +617,7 @@ onUnmounted(() => ws?.close())
   padding: 0;
 }
 .amount-field::placeholder { color: var(--ink-faint); }
+.min-stake-hint { text-align: center; color: var(--no); font-size: 0.82rem; font-weight: 700; margin: -8px 0 12px; }
 .quick-amounts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; justify-content: center; }
 .quick-chip { font-size: 0.8rem; padding: 8px 14px; }
 .projection { padding: 14px 16px; margin-bottom: 16px; }
