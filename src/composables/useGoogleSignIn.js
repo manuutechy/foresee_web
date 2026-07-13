@@ -15,6 +15,17 @@ function loadGsiScript() {
   return scriptPromise
 }
 
+// Kicks off the Google Identity Services script fetch as soon as the app
+// boots, well before the user ever reaches the auth page — by the time they
+// get there renderGoogleButton just awaits an already-settled promise instead
+// of starting a fresh network round trip, so the button appears instantly.
+export function preloadGoogleSignIn() {
+  loadGsiScript().catch(() => {
+    // Swallowed here; renderGoogleButton will surface the failure if the
+    // script genuinely never loads (e.g. blocked by an extension/network).
+  })
+}
+
 // Renders the official Google Sign-In button into the given element and resolves
 // `onCredential` with the ID token whenever the user completes the flow.
 export async function renderGoogleButton(el, onCredential) {
