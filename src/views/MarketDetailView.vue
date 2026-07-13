@@ -26,6 +26,8 @@ const amount = ref('')
 const placing = ref(false)
 const error = ref('')
 const success = ref(false)
+const lastStakeAmount = ref(0)
+const lastStakeLabel = ref('')
 let ws = null
 
 const isMultiChoice = computed(() => market.value?.market_type === 'multiple_choice')
@@ -184,6 +186,10 @@ async function placeStake() {
       option_id: isMultiChoice.value ? optionId.value : undefined,
       amount: Number(amount.value),
     })
+    lastStakeAmount.value = Number(amount.value)
+    lastStakeLabel.value = isMultiChoice.value
+      ? market.value.options.find((o) => o.id === optionId.value)?.label ?? ''
+      : side.value.toUpperCase()
     success.value = true
     amount.value = ''
     await load()
@@ -443,11 +449,23 @@ onUnmounted(() => ws?.close())
           </button>
 
           <p v-if="error" class="error">{{ error }}</p>
-          <p v-if="success" class="success">Stake placed!</p>
         </div>
         <div v-else class="surface-raised stake-card closed-notice">
           This market is {{ market.status }}.
         </div>
+      </div>
+    </div>
+
+    <!-- Trade success overlay -->
+    <div v-if="success" class="stake-overlay" @click="success = false">
+      <div class="surface-raised stake-overlay-card" @click.stop>
+        <div class="stake-success-icon">✓</div>
+        <h3>Added to the pool</h3>
+        <p class="stake-overlay-text">
+          KES {{ lastStakeAmount.toLocaleString() }} on
+          <strong>{{ lastStakeLabel }}</strong>
+        </p>
+        <button class="btn-confirm full-width" @click="success = false">Done</button>
       </div>
     </div>
   </div>
@@ -629,6 +647,46 @@ onUnmounted(() => ws?.close())
 .error { color: var(--no); margin-top: 10px; font-weight: 700; }
 .success { color: var(--yes); margin-top: 10px; font-weight: 800; }
 .closed-notice { text-align: center; color: var(--ink-muted); }
+
+.stake-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+.stake-overlay-card {
+  width: 100%;
+  max-width: 320px;
+  padding: 28px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  animation: stake-pop 0.25s ease-out;
+}
+@keyframes stake-pop {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+.stake-success-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+  background: color-mix(in srgb, var(--yes) 18%, transparent);
+  color: var(--yes);
+}
+.stake-overlay-text { color: var(--ink-muted); font-weight: 700; margin: 4px 0 14px; }
 
 /* Evidence card */
 .header-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
