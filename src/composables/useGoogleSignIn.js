@@ -28,5 +28,12 @@ export async function renderGoogleButton(el, onCredential) {
     client_id: clientId,
     callback: (response) => onCredential(response.credential),
   })
-  window.google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', width: 280 })
+  window.google.accounts.id.renderButton(el, {
+    theme: 'outline',
+    size: 'large',
+    shape: 'pill',
+    text: 'signin_with',
+    logo_alignment: 'center',
+    width: 280,
+  })
 }
