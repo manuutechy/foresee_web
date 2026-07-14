@@ -12,15 +12,22 @@ const form = ref({
   question: '', category: 'sports', zone: 'Nationwide', image_url: '', resolution_source: '', lock_at: '',
   market_type: 'binary',
 })
-const options = ref(['', ''])
+const OPTION_COLORS = ['#F97316', '#3B82F6', '#22C55E', '#EF4444', '#A855F7', '#EAB308', '#14B8A6', '#EC4899']
+
+function blankOption(i) {
+  return { label: '', image_url: '', color: OPTION_COLORS[i % OPTION_COLORS.length] }
+}
+
+const options = ref([blankOption(0), blankOption(1)])
 const creating = ref(false)
 const uploading = ref(false)
+const optionUploadingIndex = ref(null)
 const error = ref('')
 const createdId = ref(null)
 const copied = ref(false)
 
 function addOption() {
-  if (options.value.length < 6) options.value.push('')
+  if (options.value.length < 6) options.value.push(blankOption(options.value.length))
 }
 function removeOption(i) {
   if (options.value.length > 2) options.value.splice(i, 1)
@@ -43,6 +50,23 @@ async function uploadImage(e) {
   }
 }
 
+async function uploadOptionImage(i, e) {
+  const file = e.target.files[0]
+  if (!file) return
+  optionUploadingIndex.value = i
+  error.value = ''
+  try {
+    const fd = new FormData()
+    fd.append('image', file)
+    const { data } = await client.post('/upload-image', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    options.value[i].image_url = data.url
+  } catch (e) {
+    error.value = e.response?.data?.error || 'Failed to upload image'
+  } finally {
+    optionUploadingIndex.value = null
+  }
+}
+
 const shareUrl = computed(() =>
   createdId.value ? `${window.location.origin}/markets/${createdId.value}` : ''
 )
@@ -57,9 +81,12 @@ if (!form.value.lock_at) form.value.lock_at = defaultLock()
 
 async function create() {
   error.value = ''
+  let filledOptions = []
   if (form.value.market_type === 'multiple_choice') {
-    const filled = options.value.map((o) => o.trim()).filter(Boolean)
-    if (filled.length < 2) {
+    filledOptions = options.value
+      .map((o) => ({ ...o, label: o.label.trim() }))
+      .filter((o) => o.label)
+    if (filledOptions.length < 2) {
       error.value = 'Add at least 2 choices.'
       return
     }
@@ -68,7 +95,7 @@ async function create() {
   try {
     const { data } = await client.post('/markets', {
       ...form.value,
-      options: form.value.market_type === 'multiple_choice' ? options.value.map((o) => o.trim()).filter(Boolean) : undefined,
+      options: form.value.market_type === 'multiple_choice' ? filledOptions : undefined,
       lock_at: new Date(form.value.lock_at).toISOString(),
     })
     createdId.value = data.id
@@ -123,9 +150,29 @@ function shareWhatsApp() {
 
         <template v-if="form.market_type === 'multiple_choice'">
           <label class="label">Choices</label>
-          <div v-for="(opt, i) in options" :key="i" class="option-row">
-            <input v-model="options[i]" type="text" :placeholder="`Choice ${i + 1}`" class="money-input input option-input" />
-            <button v-if="options.length > 2" class="option-remove" title="Remove" @click="removeOption(i)">✕</button>
+          <div v-for="(opt, i) in options" :key="i" class="option-card">
+            <div class="option-row">
+              <label class="option-thumb" :style="{ borderColor: opt.color }">
+                <img v-if="opt.image_url" :src="mediaUrl(opt.image_url)" alt="" />
+                <span v-else-if="optionUploadingIndex === i" class="option-thumb-loading">…</span>
+                <span v-else class="option-thumb-plus">+</span>
+                <input type="file" accept="image/*" class="file-input" :disabled="optionUploadingIndex === i" @change="uploadOptionImage(i, $event)" />
+              </label>
+              <input v-model="opt.label" type="text" :placeholder="`Choice ${i + 1}`" class="money-input input option-input" />
+              <button v-if="options.length > 2" class="option-remove" title="Remove" @click="removeOption(i)">✕</button>
+            </div>
+            <div class="option-colors">
+              <button
+                v-for="c in OPTION_COLORS"
+                :key="c"
+                type="button"
+                class="color-dot"
+                :class="{ active: opt.color === c }"
+                :style="{ background: c }"
+                :aria-label="`Set choice color ${c}`"
+                @click="opt.color = c"
+              ></button>
+            </div>
           </div>
           <button v-if="options.length < 6" class="btn-neu add-option" @click="addOption">+ Add another choice</button>
           <p class="hint">Between 2 and 6 choices.</p>
@@ -198,13 +245,28 @@ function shareWhatsApp() {
 .image-preview { width: 64px; height: 64px; border-radius: 14px; object-fit: cover; background: var(--surface-sunken); flex-shrink: 0; }
 .upload-btn { position: relative; cursor: pointer; }
 .file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-.option-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.option-card { margin-bottom: 12px; }
+.option-row { display: flex; align-items: center; gap: 8px; }
 .option-input { margin-bottom: 0; flex: 1; }
 .option-remove {
   flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
   border: 2px solid var(--border); background: var(--surface);
   color: var(--ink-muted); font-weight: 800; cursor: pointer;
 }
+.option-thumb {
+  position: relative; flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px;
+  border: 2px solid var(--border); background: var(--surface-sunken);
+  display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;
+}
+.option-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.option-thumb-plus { font-size: 1.1rem; font-weight: 800; color: var(--ink-faint); }
+.option-thumb-loading { font-size: 0.8rem; color: var(--ink-faint); }
+.option-colors { display: flex; gap: 6px; margin: 6px 0 0 48px; }
+.color-dot {
+  width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; padding: 0;
+}
+.color-dot.active { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surface); }
 .add-option { margin: 4px 0 16px; align-self: flex-start; }
 .pick-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .pick { text-transform: capitalize; }

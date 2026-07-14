@@ -264,9 +264,11 @@ onUnmounted(() => ws?.close())
           </div>
           <div v-else class="option-readout">
             <div v-for="opt in sortedOptions" :key="opt.id" class="option-readout-row">
+              <img v-if="opt.image_url" :src="mediaUrl(opt.image_url)" alt="" class="option-btn-avatar" />
+              <span v-else-if="opt.color" class="option-btn-dot" :style="{ background: opt.color }"></span>
               <span class="option-readout-label">{{ opt.label }}</span>
               <div class="option-readout-bar-track">
-                <div class="option-readout-bar" :style="{ width: Math.round(opt.probability * 100) + '%' }"></div>
+                <div class="option-readout-bar" :style="{ width: Math.round(opt.probability * 100) + '%', background: opt.color || 'var(--brand)' }"></div>
               </div>
               <span class="option-readout-pct">{{ Math.round(opt.probability * 100) }}%</span>
             </div>
@@ -397,8 +399,11 @@ onUnmounted(() => ws?.close())
               :key="opt.id"
               class="option-btn"
               :class="{ selected: optionId === opt.id }"
+              :style="optionId === opt.id && opt.color ? { borderColor: opt.color, background: opt.color + '1a' } : {}"
               @click="optionId = opt.id"
             >
+              <img v-if="opt.image_url" :src="mediaUrl(opt.image_url)" alt="" class="option-btn-avatar" />
+              <span v-else-if="opt.color" class="option-btn-dot" :style="{ background: opt.color }"></span>
               <span class="option-btn-name">{{ opt.label }}</span>
               <span class="option-btn-mult">{{ optionMult(opt)?.toFixed(2) ?? '—' }}×</span>
             </button>
@@ -577,12 +582,15 @@ onUnmounted(() => ws?.close())
 
 .option-selector { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .option-btn {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
   padding: 12px 14px; border-radius: var(--radius-sm); cursor: pointer;
   border: 2px solid var(--border); background: var(--surface); color: var(--ink-muted);
   font-family: inherit; font-weight: 800; font-size: 0.9rem;
   transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
 }
+.option-btn-name { flex: 1; text-align: left; }
+.option-btn-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.option-btn-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .option-btn-mult { font-size: 0.8rem; font-weight: 800; opacity: 0.8; }
 .option-btn.selected { background: var(--brand-tint); color: var(--brand-deep); border-color: var(--brand); }
 
