@@ -14,7 +14,7 @@ const hasSavedPhone = ref(false)
 const amount = ref('')
 const submitting = ref(false)
 const feedback = ref('')
-const withdrawalFee = ref(30)
+const withdrawalFeeRate = ref(0.01)
 const depositFeeRate = ref(0.03)
 
 // Deposit tracking: the amount typed is exactly what lands in the wallet —
@@ -30,9 +30,13 @@ const depositCharge = computed(() => {
 
 // Withdrawals: the amount typed is what lands in M-Pesa; the fee is deducted
 // from the Foresee balance on top of that.
+const withdrawalFee = computed(() => {
+  const n = Number(amount.value)
+  return n > 0 ? Math.round(n * withdrawalFeeRate.value * 100) / 100 : 0
+})
 const totalDebit = computed(() => {
   const n = Number(amount.value)
-  return n > 0 ? n + withdrawalFee.value : 0
+  return n > 0 ? Math.round((n + withdrawalFee.value) * 100) / 100 : 0
 })
 
 // Deposit waiting screen: null | 'waiting' | 'success' | 'failed' | 'timeout'
@@ -121,7 +125,7 @@ onMounted(async () => {
   }
   try {
     const { data: cfg } = await client.get('/config')
-    withdrawalFee.value = cfg.withdrawal_fee_flat
+    withdrawalFeeRate.value = cfg.withdrawal_fee_rate
     depositFeeRate.value = cfg.deposit_fee_rate
   } catch { /* keep the defaults shown */ }
 })
@@ -193,7 +197,7 @@ onBeforeUnmount(stopPolling)
           <strong>KES {{ Number(amount).toLocaleString() }}</strong>
         </div>
         <div class="row muted">
-          <span>Withdrawal fee</span>
+          <span>Withdrawal fee ({{ (withdrawalFeeRate * 100).toFixed(0) }}%)</span>
           <span>KES {{ withdrawalFee.toLocaleString() }}</span>
         </div>
         <div class="row total">
