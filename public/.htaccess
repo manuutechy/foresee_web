@@ -1,0 +1,11 @@
+# The SPA shell and PWA update-check files must never be cached by the
+# browser or any CDN in front of it — otherwise a user's browser can keep
+# running a stale service worker after a deploy, which then 404s fetching
+# JS chunks whose content-hashed filenames changed in the new build,
+# breaking the app until that cache naturally expires (observed as
+# "the site doesn't work" for some users but not others).
+<IfModule mod_headers.c>
+  <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
