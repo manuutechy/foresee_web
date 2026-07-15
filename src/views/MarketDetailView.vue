@@ -8,6 +8,7 @@ import { categoryColorClass, categoryAccentVar } from '../composables/useCategor
 import { marketSlug } from '../composables/useMarketSlug'
 import OddsChart from '../components/OddsChart.vue'
 import Icon from '../components/Icon.vue'
+import DepositModal from '../components/DepositModal.vue'
 
 const QUICK_AMOUNTS = [100, 500, 1000, 5000]
 
@@ -30,6 +31,25 @@ const success = ref(false)
 const lastStakeAmount = ref(0)
 const lastStakeLabel = ref('')
 let ws = null
+
+const showDepositModal = ref(false)
+const depositReason = ref('')
+const depositSuggestedAmount = ref('')
+
+// A gentle heads-up while typing, before they even hit "place stake" — the
+// shortfall rounded up to the nearest 50 so the suggested top-up isn't an
+// awkward exact-to-the-shilling number.
+const shortfall = computed(() => {
+  const n = Number(amount.value)
+  if (!n || n <= wallet.balance) return 0
+  return Math.ceil((n - wallet.balance) / 50) * 50
+})
+
+function openTopUp(reason, suggested) {
+  depositReason.value = reason
+  depositSuggestedAmount.value = suggested || ''
+  showDepositModal.value = true
+}
 
 const isMultiChoice = computed(() => market.value?.market_type === 'multiple_choice')
 const isVsMarket = computed(() => isMultiChoice.value && market.value?.options?.length === 2)
@@ -228,7 +248,12 @@ async function placeStake() {
     await loadHistory()
     await wallet.fetchBalance()
   } catch (e) {
-    error.value = e.response?.data?.error || 'Failed to place stake'
+    if (e.response?.status === 402) {
+      const need = Math.max(0, Math.ceil((Number(amount.value) - wallet.balance) / 50) * 50)
+      openTopUp(`You need about KES ${need.toLocaleString()} more to place this stake.`, need)
+    } else {
+      error.value = e.response?.data?.error || 'Failed to place stake'
+    }
   } finally {
     placing.value = false
   }
@@ -244,6 +269,7 @@ async function loadConfig() {
 onMounted(async () => {
   await Promise.all([load(), loadHistory(), loadEvidence(), loadConfig()])
   connectWs()
+  if (auth.isAuthenticated) wallet.fetchBalance()
 })
 onUnmounted(() => ws?.close())
 </script>
@@ -461,6 +487,10 @@ onUnmounted(() => ws?.close())
           <p v-if="amount && Number(amount) < cfg.min_stake" class="min-stake-hint">
             Minimum stake is KES {{ cfg.min_stake }}
           </p>
+          <p v-if="auth.isAuthenticated" class="balance-hint">
+            Balance: KES {{ wallet.balance.toLocaleString() }}
+            <a href="#" class="topup-link" @click.prevent="openTopUp('', shortfall || amount)">Top up</a>
+          </p>
 
           <div class="quick-amounts">
             <button
@@ -518,6 +548,12 @@ onUnmounted(() => ws?.close())
         <button class="btn-confirm full-width" @click="success = false">Done</button>
       </div>
     </div>
+
+    <DepositModal
+      v-model:open="showDepositModal"
+      :reason="depositReason"
+      :initial-amount="depositSuggestedAmount"
+    />
   </div>
 </template>
 
@@ -701,6 +737,8 @@ onUnmounted(() => ws?.close())
 }
 .amount-field::placeholder { color: var(--ink-faint); }
 .min-stake-hint { text-align: center; color: var(--no); font-size: 0.82rem; font-weight: 700; margin: -8px 0 12px; }
+.balance-hint { text-align: center; color: var(--ink-muted); font-size: 0.82rem; font-weight: 700; margin: -8px 0 12px; }
+.topup-link { margin-left: 8px; color: var(--brand); font-weight: 800; text-decoration: none; }
 .quick-amounts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; justify-content: center; }
 .quick-chip { font-size: 0.8rem; padding: 8px 14px; }
 .projection { padding: 14px 16px; margin-bottom: 16px; }
