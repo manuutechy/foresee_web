@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import RingGauge from './RingGauge.vue'
 import { marketPath } from '../composables/useMarketSlug'
+import { mediaUrl } from '../api/client'
 
 const PLATFORM_FEE_RATE = 0.05
 
@@ -9,13 +10,20 @@ const props = defineProps({
   markets: { type: Array, required: true },
 })
 
+function poolOf(m) {
+  return m.market_type === 'multiple_choice' ? m.options.reduce((s, o) => s + o.pool, 0) : m.yes_pool + m.no_pool
+}
+
+// VS (2-option) markets compete for the featured slot alongside binary ones;
+// 3+ option markets stay out since there's no clean two-sided hero visual.
 const featured = computed(() => {
-  const binary = props.markets.filter((m) => m.market_type !== 'multiple_choice')
-  if (!binary.length) return null
-  return [...binary].sort((a, b) => (b.yes_pool + b.no_pool) - (a.yes_pool + a.no_pool))[0]
+  const candidates = props.markets.filter((m) => m.market_type !== 'multiple_choice' || m.options?.length === 2)
+  if (!candidates.length) return null
+  return [...candidates].sort((a, b) => poolOf(b) - poolOf(a))[0]
 })
 
-const pool = computed(() => featured.value ? featured.value.yes_pool + featured.value.no_pool : 0)
+const isVs = computed(() => featured.value?.market_type === 'multiple_choice')
+const pool = computed(() => featured.value ? poolOf(featured.value) : 0)
 
 function compact(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -39,7 +47,7 @@ function multiplier(sidePool, oppositePool) {
 
       <h1 class="hero-q">{{ featured.question }}</h1>
 
-      <div class="hero-pills">
+      <div v-if="!isVs" class="hero-pills">
         <div class="hero-pill">
           <span class="pill-side pill-yes">YES</span>
           <span class="pill-mult">{{ multiplier(featured.yes_pool, featured.no_pool)?.toFixed(2) ?? '—' }}×</span>
@@ -50,13 +58,29 @@ function multiplier(sidePool, oppositePool) {
         </div>
         <span class="hero-poolinfo">KES {{ compact(pool) }} · {{ featured.participant_count }} trading</span>
       </div>
+      <div v-else class="hero-poolinfo hero-poolinfo-vs">KES {{ compact(pool) }} · {{ featured.participant_count }} trading</div>
 
       <span class="hero-trade">Trade this market →</span>
     </div>
 
-    <div class="hero-gauge">
+    <div v-if="!isVs" class="hero-gauge">
       <RingGauge :probability="featured.yes_probability" :size="132" :stroke="13" track="oklch(88% 0.06 88)" />
       <span class="hero-gauge-cap">chance of yes</span>
+    </div>
+    <div v-else class="hero-vs">
+      <div class="hero-vs-side">
+        <img v-if="featured.options[0].image_url" :src="mediaUrl(featured.options[0].image_url)" alt="" class="hero-vs-avatar" :style="{ borderColor: featured.options[0].color || 'var(--gold-ink)' }" />
+        <div v-else class="hero-vs-avatar hero-vs-avatar-fallback" :style="{ background: featured.options[0].color || 'var(--brand)' }">{{ featured.options[0].label.charAt(0).toUpperCase() }}</div>
+        <span class="hero-vs-name">{{ featured.options[0].label }}</span>
+        <span class="hero-vs-pct">{{ Math.round(featured.options[0].probability * 100) }}%</span>
+      </div>
+      <span class="hero-vs-badge">VS</span>
+      <div class="hero-vs-side">
+        <img v-if="featured.options[1].image_url" :src="mediaUrl(featured.options[1].image_url)" alt="" class="hero-vs-avatar" :style="{ borderColor: featured.options[1].color || 'var(--gold-ink)' }" />
+        <div v-else class="hero-vs-avatar hero-vs-avatar-fallback" :style="{ background: featured.options[1].color || 'var(--accent)' }">{{ featured.options[1].label.charAt(0).toUpperCase() }}</div>
+        <span class="hero-vs-name">{{ featured.options[1].label }}</span>
+        <span class="hero-vs-pct">{{ Math.round(featured.options[1].probability * 100) }}%</span>
+      </div>
     </div>
   </router-link>
 </template>
@@ -136,6 +160,21 @@ function multiplier(sidePool, oppositePool) {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   opacity: 0.75;
+}
+.hero-poolinfo-vs { display: block; margin-bottom: 18px; }
+.hero-vs { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.hero-vs-side { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 96px; }
+.hero-vs-avatar { width: 76px; height: 76px; border-radius: 50%; object-fit: cover; border: 3px solid var(--gold-ink); }
+.hero-vs-avatar-fallback { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 1.8rem; }
+.hero-vs-name { font-size: 0.8rem; font-weight: 800; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hero-vs-pct { font-size: 0.85rem; font-weight: 900; }
+.hero-vs-badge {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold-ink); color: var(--gold); font-size: 0.68rem; font-weight: 900;
+}
+@media (max-width: 560px) {
+  .hero-vs { flex-direction: row; justify-content: center; }
 }
 
 /* Mobile: gauge tucks under, single column */

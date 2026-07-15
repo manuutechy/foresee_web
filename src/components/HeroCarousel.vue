@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import client from '../api/client'
+import client, { mediaUrl } from '../api/client'
 import RingGauge from './RingGauge.vue'
 import { marketPath } from '../composables/useMarketSlug'
 
@@ -16,8 +16,8 @@ const banners = ref([])
 
 const slides = computed(() => {
   const top = props.markets
-    .filter((m) => m.market_type !== 'multiple_choice')
-    .sort((a, b) => (b.yes_pool + b.no_pool) - (a.yes_pool + a.no_pool))
+    .filter((m) => m.market_type !== 'multiple_choice' || m.options?.length === 2)
+    .sort((a, b) => pool(b) - pool(a))
     .slice(0, 3)
     .map((m) => ({ type: 'market', market: m }))
   const promo = banners.value.map((b) => ({
@@ -71,7 +71,7 @@ function multiplier(sidePool, oppositePool) {
   if (sidePool <= 0) return null
   return 1 + (oppositePool * (1 - PLATFORM_FEE_RATE)) / sidePool
 }
-function pool(m) { return m.yes_pool + m.no_pool }
+function pool(m) { return m.market_type === 'multiple_choice' ? m.options.reduce((s, o) => s + o.pool, 0) : m.yes_pool + m.no_pool }
 </script>
 
 <template>
@@ -86,7 +86,7 @@ function pool(m) { return m.yes_pool + m.no_pool }
               <span class="hm-chip ghost">{{ slide.market.zone }}</span>
             </div>
             <h2 class="hm-q">{{ slide.market.question }}</h2>
-            <div class="hm-pills">
+            <div v-if="slide.market.market_type !== 'multiple_choice'" class="hm-pills">
               <div class="hm-pill">
                 <span class="ps yes">YES</span>
                 <span class="pm">{{ multiplier(slide.market.yes_pool, slide.market.no_pool)?.toFixed(2) ?? '—' }}×</span>
@@ -97,11 +97,27 @@ function pool(m) { return m.yes_pool + m.no_pool }
               </div>
               <span class="hm-info">KES {{ compact(pool(slide.market)) }} · {{ slide.market.participant_count }} trading</span>
             </div>
+            <div v-else class="hm-info hm-info-vs">KES {{ compact(pool(slide.market)) }} · {{ slide.market.participant_count }} trading</div>
             <span class="hm-cta">Trade this market →</span>
           </div>
-          <div class="hm-gauge">
+          <div v-if="slide.market.market_type !== 'multiple_choice'" class="hm-gauge">
             <RingGauge :probability="slide.market.yes_probability" :size="122" :stroke="13" track="oklch(88% 0.06 88)" />
             <span class="hm-gauge-cap">chance of yes</span>
+          </div>
+          <div v-else class="hm-vs">
+            <div class="hm-vs-side">
+              <img v-if="slide.market.options[0].image_url" :src="mediaUrl(slide.market.options[0].image_url)" alt="" class="hm-vs-avatar" :style="{ borderColor: slide.market.options[0].color || 'var(--gold-ink)' }" />
+              <div v-else class="hm-vs-avatar hm-vs-avatar-fallback" :style="{ background: slide.market.options[0].color || 'var(--brand)' }">{{ slide.market.options[0].label.charAt(0).toUpperCase() }}</div>
+              <span class="hm-vs-name">{{ slide.market.options[0].label }}</span>
+              <span class="hm-vs-pct">{{ Math.round(slide.market.options[0].probability * 100) }}%</span>
+            </div>
+            <span class="hm-vs-badge">VS</span>
+            <div class="hm-vs-side">
+              <img v-if="slide.market.options[1].image_url" :src="mediaUrl(slide.market.options[1].image_url)" alt="" class="hm-vs-avatar" :style="{ borderColor: slide.market.options[1].color || 'var(--gold-ink)' }" />
+              <div v-else class="hm-vs-avatar hm-vs-avatar-fallback" :style="{ background: slide.market.options[1].color || 'var(--accent)' }">{{ slide.market.options[1].label.charAt(0).toUpperCase() }}</div>
+              <span class="hm-vs-name">{{ slide.market.options[1].label }}</span>
+              <span class="hm-vs-pct">{{ Math.round(slide.market.options[1].probability * 100) }}%</span>
+            </div>
           </div>
         </router-link>
 
@@ -181,6 +197,18 @@ function pool(m) { return m.yes_pool + m.no_pool }
 .hm-cta { display: inline-block; background: var(--brand); color: var(--brand-ink); font-weight: 900; font-size: 0.92rem; padding: 12px 22px; border-radius: var(--radius-sm); box-shadow: 0 4px 0 var(--brand-edge); }
 .hm-gauge { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .hm-gauge-cap { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.75; }
+.hm-info-vs { display: block; }
+.hm-vs { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.hm-vs-side { display: flex; flex-direction: column; align-items: center; gap: 5px; max-width: 88px; }
+.hm-vs-avatar { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; border: 3px solid var(--gold-ink); }
+.hm-vs-avatar-fallback { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 1.5rem; }
+.hm-vs-name { font-size: 0.76rem; font-weight: 800; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-vs-pct { font-size: 0.8rem; font-weight: 900; }
+.hm-vs-badge {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold-ink); color: var(--gold); font-size: 0.62rem; font-weight: 900;
+}
 
 /* --- Promo image slide --- */
 .hero-promo {

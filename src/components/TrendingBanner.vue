@@ -6,11 +6,23 @@ const props = defineProps({
   markets: { type: Array, required: true },
 })
 
-// The #1 pool is the hero cover, so the strip ranks the next ones.
+function poolOf(m) {
+  return m.market_type === 'multiple_choice' ? m.options.reduce((s, o) => s + o.pool, 0) : m.yes_pool + m.no_pool
+}
+function leader(m) {
+  if (m.market_type === 'multiple_choice') {
+    return [...m.options].sort((a, b) => b.probability - a.probability)[0]
+  }
+  return { label: 'yes', probability: m.yes_probability }
+}
+
+// The #1 pool is the hero cover, so the strip ranks the next ones. VS (2-option)
+// markets are included alongside binary ones; 3+ option markets stay out since
+// there's no single "leading side" story to tell in this compact a card.
 const trending = computed(() =>
   props.markets
-    .filter((m) => m.market_type !== 'multiple_choice')
-    .sort((a, b) => (b.yes_pool + b.no_pool) - (a.yes_pool + a.no_pool))
+    .filter((m) => m.market_type !== 'multiple_choice' || m.options?.length === 2)
+    .sort((a, b) => poolOf(b) - poolOf(a))
     .slice(1, 7)
 )
 </script>
@@ -28,8 +40,8 @@ const trending = computed(() =>
         <div class="trending-body">
           <p class="trending-question">{{ m.question }}</p>
           <div class="trending-foot">
-            <span class="trending-pct">{{ Math.round(m.yes_probability * 100) }}% yes</span>
-            <span class="trending-vol">KES {{ (m.yes_pool + m.no_pool).toLocaleString() }}</span>
+            <span class="trending-pct">{{ Math.round(leader(m).probability * 100) }}% {{ leader(m).label }}</span>
+            <span class="trending-vol">KES {{ poolOf(m).toLocaleString() }}</span>
           </div>
         </div>
       </router-link>
