@@ -126,9 +126,25 @@ onMounted(loadMarkets)
       >
         <span v-if="isUrgent(m.lock_at)" class="badge badge-urgent">Ends soon</span>
 
+        <div v-if="m.market_type === 'multiple_choice' && m.options?.length === 2" class="vs-top">
+          <div class="vs-side">
+            <img v-if="m.options[0].image_url" :src="mediaUrl(m.options[0].image_url)" alt="" class="vs-avatar" :style="{ borderColor: m.options[0].color || 'var(--border)' }" />
+            <div v-else class="vs-avatar vs-avatar-fallback" :style="{ background: m.options[0].color || categoryAccentVar(m.category) }">{{ initials(m.options[0].label) }}</div>
+            <span class="vs-name">{{ m.options[0].label }}</span>
+            <span class="vs-pct">{{ Math.round(m.options[0].probability * 100) }}%</span>
+          </div>
+          <span class="vs-badge">VS</span>
+          <div class="vs-side">
+            <img v-if="m.options[1].image_url" :src="mediaUrl(m.options[1].image_url)" alt="" class="vs-avatar" :style="{ borderColor: m.options[1].color || 'var(--border)' }" />
+            <div v-else class="vs-avatar vs-avatar-fallback" :style="{ background: m.options[1].color || categoryAccentVar(m.category) }">{{ initials(m.options[1].label) }}</div>
+            <span class="vs-name">{{ m.options[1].label }}</span>
+            <span class="vs-pct">{{ Math.round(m.options[1].probability * 100) }}%</span>
+          </div>
+        </div>
+
         <div class="card-top">
-          <img v-if="m.image_url" :src="mediaUrl(m.image_url)" alt="" class="thumbnail thumbnail-img" />
-          <div v-else class="thumbnail" :style="{ background: categoryAccentVar(m.category) }">{{ initials(m.category) }}</div>
+          <img v-if="!(m.market_type === 'multiple_choice' && m.options?.length === 2) && m.image_url" :src="mediaUrl(m.image_url)" alt="" class="thumbnail thumbnail-img" />
+          <div v-else-if="!(m.market_type === 'multiple_choice' && m.options?.length === 2)" class="thumbnail" :style="{ background: categoryAccentVar(m.category) }">{{ initials(m.category) }}</div>
           <div class="card-info">
             <div class="card-tags">
               <span class="tag" :class="categoryColorClass(m.category)">{{ m.category }}</span>
@@ -139,7 +155,7 @@ onMounted(loadMarkets)
           <RingGauge v-if="m.market_type !== 'multiple_choice'" :probability="m.yes_probability" :size="68" :stroke="12" />
         </div>
 
-        <div v-if="m.market_type === 'multiple_choice'" class="choice-row">
+        <div v-if="m.market_type === 'multiple_choice' && m.options?.length !== 2" class="choice-row">
           <div v-for="opt in [...m.options].sort((a, b) => b.probability - a.probability).slice(0, 3)" :key="opt.id" class="choice-pill">
             <span class="choice-label">{{ opt.label }}</span>
             <span class="choice-pct">{{ Math.round(opt.probability * 100) }}%</span>
@@ -301,6 +317,19 @@ onMounted(loadMarkets)
 .choice-label { color: var(--ink); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .choice-pct { color: var(--brand-deep); }
 .choice-more { align-self: center; font-size: 0.75rem; font-weight: 700; color: var(--ink-faint); }
+
+.vs-top { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; }
+.vs-side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.vs-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 3px solid var(--border); }
+.vs-avatar-fallback { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 1.2rem; }
+.vs-name { font-size: 0.78rem; font-weight: 800; color: var(--ink); text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-pct { font-size: 0.8rem; font-weight: 900; color: var(--brand-deep); }
+.vs-badge {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ink); color: var(--surface); font-size: 0.62rem; font-weight: 900;
+  letter-spacing: 0.02em;
+}
 .card-bottom { display: flex; justify-content: space-between; align-items: center; }
 .meta { font-size: 0.72rem; font-weight: 700; color: var(--ink-muted); }
 .time-left { font-size: 0.72rem; font-weight: 900; color: var(--ink-muted); }

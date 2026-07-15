@@ -31,6 +31,7 @@ const lastStakeLabel = ref('')
 let ws = null
 
 const isMultiChoice = computed(() => market.value?.market_type === 'multiple_choice')
+const isVsMarket = computed(() => isMultiChoice.value && market.value?.options?.length === 2)
 
 // Community evidence
 const evidence = ref([])
@@ -223,9 +224,22 @@ onUnmounted(() => ws?.close())
     <div class="detail-layout">
       <div class="detail-main">
         <div class="surface-raised header-card">
+          <div v-if="isVsMarket" class="vs-hero">
+            <div class="vs-hero-side">
+              <img v-if="market.options[0].image_url" :src="mediaUrl(market.options[0].image_url)" alt="" class="vs-hero-avatar" :style="{ borderColor: market.options[0].color || 'var(--border)' }" />
+              <div v-else class="vs-hero-avatar vs-hero-avatar-fallback" :style="{ background: market.options[0].color || categoryAccentVar(market.category) }">{{ market.options[0].label.trim().charAt(0).toUpperCase() }}</div>
+              <span class="vs-hero-name">{{ market.options[0].label }}</span>
+            </div>
+            <span class="vs-hero-badge">VS</span>
+            <div class="vs-hero-side">
+              <img v-if="market.options[1].image_url" :src="mediaUrl(market.options[1].image_url)" alt="" class="vs-hero-avatar" :style="{ borderColor: market.options[1].color || 'var(--border)' }" />
+              <div v-else class="vs-hero-avatar vs-hero-avatar-fallback" :style="{ background: market.options[1].color || categoryAccentVar(market.category) }">{{ market.options[1].label.trim().charAt(0).toUpperCase() }}</div>
+              <span class="vs-hero-name">{{ market.options[1].label }}</span>
+            </div>
+          </div>
           <div class="header-top">
-            <img v-if="market.image_url" :src="mediaUrl(market.image_url)" alt="" class="thumbnail thumbnail-img" />
-            <div v-else class="thumbnail" :style="{ background: categoryAccentVar(market.category) }">
+            <img v-if="!isVsMarket && market.image_url" :src="mediaUrl(market.image_url)" alt="" class="thumbnail thumbnail-img" />
+            <div v-else-if="!isVsMarket" class="thumbnail" :style="{ background: categoryAccentVar(market.category) }">
               {{ market.category.trim().charAt(0).toUpperCase() }}
             </div>
             <div class="header-top-info">
@@ -503,6 +517,18 @@ onUnmounted(() => ws?.close())
   font-size: 1.1rem;
 }
 .thumbnail-img { object-fit: cover; background: var(--surface-sunken); }
+
+.vs-hero { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 16px; }
+.vs-hero-side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; max-width: 140px; }
+.vs-hero-avatar { width: 76px; height: 76px; border-radius: 50%; object-fit: cover; border: 3px solid var(--border); }
+.vs-hero-avatar-fallback { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 1.8rem; }
+.vs-hero-name { font-size: 0.88rem; font-weight: 800; color: var(--ink); text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-hero-badge {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ink); color: var(--surface); font-size: 0.78rem; font-weight: 900;
+  letter-spacing: 0.02em;
+}
 .question {
   font-size: 1.05rem;
   font-weight: 800;
