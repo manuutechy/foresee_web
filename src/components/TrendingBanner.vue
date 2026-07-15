@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { marketPath } from '../composables/useMarketSlug'
 
 const props = defineProps({
   markets: { type: Array, required: true },
@@ -20,7 +21,7 @@ const trending = computed(() =>
       <router-link
         v-for="(m, i) in trending"
         :key="m.id"
-        :to="`/markets/${m.id}`"
+        :to="marketPath(m)"
         class="trending-card"
       >
         <span class="trending-rank">{{ i + 2 }}</span>

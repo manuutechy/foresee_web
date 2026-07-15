@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import client from '../api/client'
 import RingGauge from './RingGauge.vue'
+import { marketPath } from '../composables/useMarketSlug'
 
 const PLATFORM_FEE_RATE = 0.05
 const ADVANCE_MS = 5500
@@ -78,7 +79,7 @@ function pool(m) { return m.yes_pool + m.no_pool }
     <div class="track" :style="{ transform: `translateX(-${index * 100}%)` }">
       <div v-for="(slide, i) in slides" :key="i" class="slide">
         <!-- Market slide -->
-        <router-link v-if="slide.type === 'market'" :to="`/markets/${slide.market.id}`" class="hero-market">
+        <router-link v-if="slide.type === 'market'" :to="marketPath(slide.market)" class="hero-market">
           <div class="hm-body">
             <div class="hm-chips">
               <span class="hm-chip">★ Biggest pool today</span>

@@ -6,6 +6,7 @@ import TrendingBanner from '../components/TrendingBanner.vue'
 import HeroCarousel from '../components/HeroCarousel.vue'
 import { categoryColorClass, categoryAccentVar } from '../composables/useCategoryColor'
 import { useSearchStore } from '../stores/search'
+import { marketPath } from '../composables/useMarketSlug'
 import Icon from '../components/Icon.vue'
 
 const PLATFORM_FEE_RATE = 0.05
@@ -120,7 +121,7 @@ onMounted(loadMarkets)
       <router-link
         v-for="(m, i) in filteredMarkets"
         :key="m.id"
-        :to="`/markets/${m.id}`"
+        :to="marketPath(m)"
         class="surface-raised market-card"
         :style="{ animationDelay: `${Math.min(i, 8) * 40}ms` }"
       >

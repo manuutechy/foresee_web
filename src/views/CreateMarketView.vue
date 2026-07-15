@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import client, { mediaUrl } from '../api/client'
+import { marketPath } from '../composables/useMarketSlug'
 
 const router = useRouter()
 
@@ -68,7 +69,7 @@ async function uploadOptionImage(i, e) {
 }
 
 const shareUrl = computed(() =>
-  createdId.value ? `${window.location.origin}/markets/${createdId.value}` : ''
+  createdId.value ? `${window.location.origin}${marketPath({ question: form.value.question, id: createdId.value })}` : ''
 )
 
 // Default the lock time to 3 days out for convenience
@@ -227,7 +228,7 @@ function shareWhatsApp() {
           <button class="btn-neu share-copy" @click="copyLink">{{ copied ? 'Copied ✓' : 'Copy link' }}</button>
         </div>
 
-        <router-link :to="`/markets/${createdId}`" class="view-link">View market →</router-link>
+        <router-link :to="marketPath({ question: form.question, id: createdId })" class="view-link">View market →</router-link>
       </div>
     </template>
   </div>

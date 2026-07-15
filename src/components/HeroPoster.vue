@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import RingGauge from './RingGauge.vue'
+import { marketPath } from '../composables/useMarketSlug'
 
 const PLATFORM_FEE_RATE = 0.05
 
@@ -29,7 +30,7 @@ function multiplier(sidePool, oppositePool) {
 </script>
 
 <template>
-  <router-link v-if="featured" :to="`/markets/${featured.id}`" class="hero">
+  <router-link v-if="featured" :to="marketPath(featured)" class="hero">
     <div class="hero-body">
       <div class="hero-chips">
         <span class="hero-chip">★ Biggest pool today</span>

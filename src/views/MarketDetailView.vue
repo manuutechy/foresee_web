@@ -5,6 +5,7 @@ import client, { mediaUrl } from '../api/client'
 import { useWalletStore } from '../stores/wallet'
 import { useAuthStore } from '../stores/auth'
 import { categoryColorClass, categoryAccentVar } from '../composables/useCategoryColor'
+import { marketSlug } from '../composables/useMarketSlug'
 import OddsChart from '../components/OddsChart.vue'
 import Icon from '../components/Icon.vue'
 
@@ -42,17 +43,24 @@ const evError = ref('')
 const evSuccess = ref(false)
 
 async function load() {
-  const { data } = await client.get(`/markets/${route.params.id}`)
+  const { data } = await client.get(`/markets/${route.params.slug}`)
   market.value = data
+  // Old plain-id links (or a question edit) resolve fine server-side, but the
+  // address bar should still settle on the canonical slug so copy/share
+  // links are always the readable form.
+  const canonical = marketSlug(data.question, data.id)
+  if (route.params.slug !== canonical) {
+    router.replace({ name: 'market-detail', params: { slug: canonical } })
+  }
 }
 
 async function loadHistory() {
-  const { data } = await client.get(`/markets/${route.params.id}/history`)
+  const { data } = await client.get(`/markets/${route.params.slug}/history`)
   history.value = data
 }
 
 async function loadEvidence() {
-  const { data } = await client.get(`/markets/${route.params.id}/evidence`)
+  const { data } = await client.get(`/markets/${route.params.slug}/evidence`)
   evidence.value = data
 }
 
@@ -73,7 +81,7 @@ async function submitEvidence() {
   }
   evSubmitting.value = true
   try {
-    await client.post(`/markets/${route.params.id}/evidence`, evForm.value)
+    await client.post(`/markets/${route.params.slug}/evidence`, evForm.value)
     evSuccess.value = true
     evForm.value = { proposed_outcome: 'yes', proposed_option_id: '', evidence_url: '', note: '' }
     showEvidenceForm.value = false
@@ -87,7 +95,7 @@ async function submitEvidence() {
 
 function connectWs() {
   const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/^http/, 'ws')
-  ws = new WebSocket(`${base}/ws/markets/${route.params.id}`)
+  ws = new WebSocket(`${base}/ws/markets/${market.value.id}`)
   ws.onmessage = (event) => {
     const update = JSON.parse(event.data)
     if (!market.value) return
@@ -156,18 +164,41 @@ const lockDate = computed(() => market.value ? new Date(market.value.lock_at).to
 const showRules = ref(false)
 const copied = ref(false)
 
+// A concrete "stake this, win this" line for share text — picks the
+// currently-leading side/option so the number is always the best-looking
+// real multiplier available right now.
+const SAMPLE_STAKE = 100
+const shareLine = computed(() => {
+  if (!market.value) return ''
+  let label, m
+  if (isMultiChoice.value) {
+    const top = sortedOptions.value[0]
+    if (!top) return ''
+    label = top.label
+    m = optionMult(top)
+  } else {
+    const yesLeads = (market.value.yes_probability ?? 0.5) >= 0.5
+    label = yesLeads ? 'YES' : 'NO'
+    m = yesLeads ? yesMult.value : noMult.value
+  }
+  if (!m) return ''
+  return `Stake KES ${SAMPLE_STAKE} on ${label}, win KES ${Math.round(SAMPLE_STAKE * m).toLocaleString()}`
+})
+
 async function copyLink() {
   await navigator.clipboard.writeText(window.location.href)
   copied.value = true
   setTimeout(() => (copied.value = false), 1600)
 }
 function shareWhatsApp() {
-  const text = encodeURIComponent(`${market.value.question} — predict it on Foresee: ${window.location.href}`)
+  const line = shareLine.value ? `${shareLine.value}\n` : ''
+  const text = encodeURIComponent(`${market.value.question}\n${line}${window.location.href}`)
   window.open(`https://wa.me/?text=${text}`, '_blank')
 }
 function nativeShare() {
   if (navigator.share) {
-    navigator.share({ title: 'Foresee', text: market.value.question, url: window.location.href }).catch(() => {})
+    const text = shareLine.value ? `${market.value.question}\n${shareLine.value}` : market.value.question
+    navigator.share({ title: 'Foresee', text, url: window.location.href }).catch(() => {})
   } else {
     copyLink()
   }
@@ -182,7 +213,7 @@ async function placeStake() {
   success.value = false
   placing.value = true
   try {
-    await client.post(`/markets/${route.params.id}/stake`, {
+    await client.post(`/markets/${route.params.slug}/stake`, {
       side: isMultiChoice.value ? undefined : side.value,
       option_id: isMultiChoice.value ? optionId.value : undefined,
       amount: Number(amount.value),

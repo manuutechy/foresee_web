@@ -7,7 +7,7 @@ const routes = [
   // Browsing markets never requires an account — only staking, wallet, and
   // account-specific screens do.
   { path: '/', name: 'markets', component: () => import('../views/MarketListView.vue') },
-  { path: '/markets/:id', name: 'market-detail', component: () => import('../views/MarketDetailView.vue') },
+  { path: '/markets/:slug', name: 'market-detail', component: () => import('../views/MarketDetailView.vue') },
   { path: '/wallet', name: 'wallet', component: () => import('../views/WalletView.vue'), meta: { requiresAuth: true } },
   { path: '/predictions', name: 'predictions', component: () => import('../views/MyPredictionsView.vue'), meta: { requiresAuth: true } },
   { path: '/notifications', name: 'notifications', component: () => import('../views/NotificationsView.vue'), meta: { requiresAuth: true } },
