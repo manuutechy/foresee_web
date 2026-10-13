@@ -23,14 +23,17 @@ const submitting = ref(false)
 const feedback = ref('')
 const depositFeeRate = ref(0.03)
 
-const depositFee = computed(() => {
-  const n = Number(amount.value)
-  return n > 0 ? Math.round(n * depositFeeRate.value * 100) / 100 : 0
-})
+// M-Pesa only charges whole shillings, so the prompt is rounded up and the
+// rounding is part of the fee (matches the API).
 const depositCharge = computed(() => {
   const n = Number(amount.value)
-  return n > 0 ? Math.round((n + depositFee.value) * 100) / 100 : 0
+  return n > 0 ? Math.ceil(Math.round(n * (1 + depositFeeRate.value) * 100) / 100) : 0
 })
+const depositFee = computed(() => {
+  const n = Number(amount.value)
+  return n > 0 ? Math.round((depositCharge.value - n) * 100) / 100 : 0
+})
+
 
 // null | 'waiting' | 'success' | 'failed' | 'timeout'
 const depositState = ref(null)
