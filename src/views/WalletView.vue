@@ -19,14 +19,17 @@ const depositFeeRate = ref(0.03)
 
 // Deposit tracking: the amount typed is exactly what lands in the wallet —
 // the fee is charged on top via M-Pesa, not deducted from it.
-const depositFee = computed(() => {
-  const n = Number(amount.value)
-  return n > 0 ? Math.round(n * depositFeeRate.value * 100) / 100 : 0
-})
+// M-Pesa only charges whole shillings, so the prompt is rounded up and the
+// rounding is part of the fee (matches the API).
 const depositCharge = computed(() => {
   const n = Number(amount.value)
-  return n > 0 ? Math.round((n + depositFee.value) * 100) / 100 : 0
+  return n > 0 ? Math.ceil(Math.round(n * (1 + depositFeeRate.value) * 100) / 100) : 0
 })
+const depositFee = computed(() => {
+  const n = Number(amount.value)
+  return n > 0 ? Math.round((depositCharge.value - n) * 100) / 100 : 0
+})
+
 
 // Withdrawals: the amount typed is what lands in M-Pesa; the fee is deducted
 // from the Foresee balance on top of that.
@@ -163,7 +166,7 @@ onBeforeUnmount(stopPolling)
       </template>
 
       <label class="field-label">{{ mode === 'withdraw' ? "Amount you'll receive (KES)" : "Amount to add to your wallet (KES)" }}</label>
-      <input v-model="amount" type="number" min="1" class="money-input field-input" />
+      <input v-model="amount" type="number" :min="mode === 'withdraw' ? 30 : 1" step="1" class="money-input field-input" />
 
       <div v-if="mode === 'deposit'" class="preset-row">
         <button
